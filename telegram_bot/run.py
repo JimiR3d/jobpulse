@@ -20,6 +20,8 @@ Environment variables required:
 import os
 import sys
 import logging
+import signal
+import threading
 
 # Add backend/ to path so we can import telegram_handlers
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
@@ -52,9 +54,19 @@ def main():
 
     logger.info('{"event": "bot_starting", "mode": "standalone_github_actions"}')
 
+    # Schedule a clean SIGINT right before the 350-minute GitHub Actions timeout
+    # This ensures the process exits cleanly (Code 0) and the GitHub job shows as Green ✅
+    def clean_exit():
+        logger.info('{"event": "bot_timeout_reached", "msg": "349 minutes elapsed. Shutting down cleanly."}')
+        os.kill(os.getpid(), signal.SIGINT)
+
+    timer = threading.Timer(349 * 60, clean_exit)
+    timer.daemon = True
+    timer.start()
+
     try:
         from telegram_handlers import run_bot
-        run_bot(token)  # Blocks until SIGTERM (sent by GitHub Actions at timeout)
+        run_bot(token)  # Blocks until SIGTERM/SIGINT
     except KeyboardInterrupt:
         logger.info('{"event": "bot_stopped", "reason": "KeyboardInterrupt"}')
     except Exception as e:
