@@ -1,0 +1,47 @@
+# ═══════════════════════════════════════════════════════
+# render.yaml — OPTION A: Render Starter Plan
+#
+# Uses your $50 Render credit. ~$7/month = ~7 months free.
+# FastAPI + Telegram bot run together (always-on, no sleep).
+#
+# Deploy:
+#   1. Push repo to GitHub
+#   2. Render Dashboard → New → Blueprint → select this repo
+#   3. Render auto-reads this file
+#   4. Set secret env vars in Render dashboard after deploy
+# ═══════════════════════════════════════════════════════
+
+services:
+  - type: web
+    name: jobpulse-backend
+    env: python
+    plan: standard         # $7/month — always-on, no sleep, bot runs here
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+
+    envVars:
+      - key: ENV
+        value: production
+      - key: START_TELEGRAM_BOT
+        value: "true"       # Bot runs embedded in FastAPI process
+      - key: PORT
+        value: "8000"
+
+      # ── Secret env vars — set these in Render dashboard after deploy ──
+      # DO NOT put real values here — this file is committed to git
+      - key: SUPABASE_URL
+        sync: false         # "sync: false" = Render will prompt you to set it
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: FRONTEND_URL
+        sync: false         # Set to your Vercel URL, e.g. https://jobpulse.vercel.app

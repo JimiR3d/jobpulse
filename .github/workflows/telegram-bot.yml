@@ -1,0 +1,57 @@
+name: Telegram Bot (Option B — Pure $0)
+
+# ─────────────────────────────────────────────────────────────
+# This workflow runs the Telegram bot as a standalone process.
+# Use this when deploying FastAPI on the Render FREE tier where
+# the bot cannot run as a background thread (service sleeps).
+#
+# How it works:
+#   1. Cron triggers every 6 hours
+#   2. Bot polls Telegram for up to 350 minutes (5h 50min)
+#   3. Job exits, cron triggers again — ~10 min gap between runs
+#   4. During the gap, Telegram queues updates — bot processes
+#      them on reconnect (no commands are lost)
+#
+# GitHub Actions free tier: unlimited minutes on public repos.
+# ─────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'    # Every 6 hours: 00:00, 06:00, 12:00, 18:00 UTC
+  workflow_dispatch:           # Manual trigger for testing
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355      # Slightly over 5h 50min — GitHub terminates at 6h anyway
+
+    steps:
+      # SHA-pinned (Security Patch #5)
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            telegram_bot/requirements.txt
+            backend/requirements.txt
+
+      - name: Install bot dependencies
+        run: |
+          pip install -r telegram_bot/requirements.txt
+          # Also install backend deps so telegram_bot/run.py can import telegram_handlers
+          pip install -r backend/requirements.txt
+
+      - name: Run Telegram bot
+        run: python telegram_bot/run.py
+        timeout-minutes: 350   # Stop 10 min before the 6h job limit for a clean exit
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # No GROQ/GEMINI keys needed — bot only reads from Supabase
+
+      - name: Log restart
+        if: always()
+        run: |
+          echo "Bot session ended at $(date -u). Next session starts at next cron trigger."

@@ -1,0 +1,49 @@
+# ═══════════════════════════════════════════════════════
+# render-free.yaml — OPTION B: Render Free Tier
+#
+# Completely $0. Trade-offs vs Starter:
+#  - FastAPI sleeps after 15min of inactivity (cold starts)
+#  - Telegram bot runs SEPARATELY in GitHub Actions
+#  - UptimeRobot keeps FastAPI alive (free external ping)
+#
+# Deploy:
+#   1. Push repo to GitHub
+#   2. Render Dashboard → New → Blueprint → select repo
+#      → change blueprint file to render-free.yaml
+#   3. Set secret env vars in Render dashboard after deploy
+#   4. Set up GitHub Actions secrets for telegram-bot.yml
+#   5. Set up UptimeRobot to ping /health every 5 minutes
+# ═══════════════════════════════════════════════════════
+
+services:
+  - type: web
+    name: jobpulse-backend
+    env: python
+    plan: free             # $0 — sleeps after 15min, wakes on HTTP request
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+
+    envVars:
+      - key: ENV
+        value: production
+      - key: START_TELEGRAM_BOT
+        value: "false"     # Bot does NOT run here — it runs in GitHub Actions
+      - key: PORT
+        value: "8000"
+
+      # ── Secret env vars — set these in Render dashboard after deploy ──
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      # Note: TELEGRAM_BOT_TOKEN is NOT here — it goes in GitHub Actions secrets
