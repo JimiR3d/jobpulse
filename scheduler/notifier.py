@@ -95,16 +95,18 @@ async def _send_job_alert(bot: Bot, chat_id: int, job: dict, match: dict) -> Non
     )
 
 
-def send_alerts(alerts: list, bot_token: str) -> None:
+def send_alerts(alerts: list, bot_token: str, bot: Bot | None = None) -> None:
     """
     Send all accumulated Telegram alerts.
 
     alerts: list of (chat_id, job_dict, match_dict) tuples
+    bot: optional pre-created Bot instance to reuse across calls
     """
     if not alerts:
         return
 
-    bot = Bot(token=bot_token)
+    if bot is None:
+        bot = Bot(token=bot_token)
 
     async def _run():
         for chat_id, job, match in alerts:

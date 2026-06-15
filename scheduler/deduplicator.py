@@ -7,6 +7,7 @@ Batch-checks in chunks of 100 to avoid URL length limits.
 """
 
 import hashlib
+import json
 import logging
 from typing import List
 
@@ -47,7 +48,7 @@ def deduplicate(jobs: List[dict], supabase: Client) -> List[dict]:
             for row in resp.data:
                 existing_hashes.add(row["dedup_hash"])
         except Exception as e:
-            logger.error({"event": "dedup_query_error", "error": str(e)})
+            logger.error(json.dumps({"event": "dedup_query_error", "error": str(e)}))
 
     new_jobs = []
     for job, h in zip(jobs, hashes):

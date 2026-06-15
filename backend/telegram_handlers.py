@@ -22,7 +22,7 @@ import random
 import string
 from datetime import datetime, timedelta, timezone
 
-from supabase import create_client
+from db import get_supabase as _get_supabase
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
@@ -40,12 +40,6 @@ _STATUS_EMOJI = {
     "low_quality": "⚠️",
 }
 
-
-def _get_supabase():
-    return create_client(
-        os.environ["SUPABASE_URL"],
-        os.environ["SUPABASE_SERVICE_ROLE_KEY"],
-    )
 
 
 def _generate_code() -> str:

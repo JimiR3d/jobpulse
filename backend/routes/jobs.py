@@ -5,25 +5,18 @@ Job feed and status update endpoints.
 user_id is always sourced from the verified JWT — never from query params.
 """
 
-import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from supabase import create_client
 
 from auth import get_current_user_id
+from db import get_supabase
 
 router = APIRouter()
 
 _VALID_STATUSES = {"new", "seen", "saved", "applied", "rejected"}
 
-
-def get_supabase():
-    return create_client(
-        os.environ["SUPABASE_URL"],
-        os.environ["SUPABASE_SERVICE_ROLE_KEY"],
-    )
 
 
 class StatusUpdate(BaseModel):
@@ -62,11 +55,14 @@ def get_jobs(
     if status:
         query = query.eq("status", status)
 
-    if not show_senior:
-        # Exclude senior/lead jobs from main feed unless user opted in
-        query = query.not_.in_("jobs.seniority", ["senior", "lead"])
-
     resp = query.execute()
+
+    if not show_senior:
+        # PostgREST nested-table filters are unreliable — filter in Python instead
+        resp.data = [
+            m for m in resp.data
+            if m.get("jobs", {}).get("seniority") not in ("senior", "lead")
+        ]
 
     # Auto-mark fetched "new" jobs as "seen"
     new_ids = [

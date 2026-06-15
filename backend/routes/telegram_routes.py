@@ -6,23 +6,16 @@ The bot generates the code (via /start command) and stores it in Supabase.
 The user enters the code in the frontend, which calls this endpoint.
 """
 
-import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from supabase import create_client
 
 from auth import get_current_user_id
+from db import get_supabase
 
 router = APIRouter()
 
-
-def get_supabase():
-    return create_client(
-        os.environ["SUPABASE_URL"],
-        os.environ["SUPABASE_SERVICE_ROLE_KEY"],
-    )
 
 
 class LinkCode(BaseModel):

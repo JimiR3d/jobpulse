@@ -11,15 +11,12 @@ Usage in routes:
     @router.get("/")
     def my_endpoint(user_id: str = Depends(get_current_user_id)):
         ...
+
 """
 
-import os
-
 from fastapi import Header, HTTPException
-from supabase import create_client
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+from db import get_supabase
 
 
 def get_current_user_id(authorization: str = Header(...)) -> str:
@@ -42,7 +39,7 @@ def get_current_user_id(authorization: str = Header(...)) -> str:
     if not token:
         raise HTTPException(status_code=401, detail="Empty bearer token")
 
-    supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    supabase = get_supabase()
 
     try:
         user_response = supabase.auth.get_user(token)
@@ -52,3 +49,4 @@ def get_current_user_id(authorization: str = Header(...)) -> str:
 
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+

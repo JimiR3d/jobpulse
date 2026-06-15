@@ -6,23 +6,16 @@ Library sources (is_library=true) are globally readable.
 Custom user sources are private per user.
 """
 
-import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from supabase import create_client
 
 from auth import get_current_user_id
+from db import get_supabase
 
 router = APIRouter()
 
-
-def get_supabase():
-    return create_client(
-        os.environ["SUPABASE_URL"],
-        os.environ["SUPABASE_SERVICE_ROLE_KEY"],
-    )
 
 
 @router.get("/library")

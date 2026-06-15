@@ -255,6 +255,24 @@ When your $0 budget constraints relax OR if the 10-min bot gap bothers you:
 - Moved scheduler Telegram alerts to dispatch mid-run (per-source) to protect against 25-minute workflow timeouts
 - Refactored scheduler pipeline to use a **Batched Prompt Architecture**, processing jobs in batches of 15. This reduces Gemini requests by a factor of 15 and completely eliminates GitHub Action timeouts on massive fetches.
 - Updated pipeline models to `RemoteCheckBatchResult`, `SeniorityBatchResult`, and `MatchScoreBatchResult` with `job_index` tracking to prevent crashing if the LLM drops a job.
+- Added strict Pydantic model validators to deeply lowercase LLM outputs, preventing case-sensitive literal validation errors from breaking the pipeline and stalling scores at 50.
+- Reduced Groq batch size to 7 and added a 60-second sleep handler for `groq.RateLimitError` to prevent the 6,000 TPM limit from causing the Jina fetcher to report 0 jobs and degrade source health.
+
+### Opus Deep Audit (2026-06-15)
+- **[C1]** Made `_lowercase_strings()` recursive in `pipeline/models.py` — now handles nested dicts, lists, and strings at any depth
+- **[C2]** Fixed `pass_rate` in `scheduler/main.py` to divide by `len(new_jobs)` instead of `len(raw_jobs)` — prevents healthy sources from degrading as duplicates accumulate
+- **[C3]** Created `backend/db.py` singleton Supabase client — all routes and auth now share one client instead of creating new ones per request
+- **[C4]** Added logging when `save_match()` returns None (duplicate constraint) in `scheduler/main.py`
+- **[C5]** Replaced unreliable PostgREST `.not_.in_()` on nested `jobs.seniority` with application-level filter in `routes/jobs.py`
+- **[M1]** Wired `jina_breaker` circuit breaker into `jina_fetcher.py` — Jina HTTP calls now trip the breaker after persistent failures
+- **[M2]** Fixed `deduplicator.py` logging to use `json.dumps()` instead of raw dict
+- **[M3]** Made `notifier.py` `send_alerts()` accept an optional pre-created `Bot` instance to reuse
+- **[M4]** Fixed `profile.py` `generate_description` error logging to use structured JSON
+- **[L1]** Removed `PyJWT` from `backend/requirements.txt` (unused after auth refactor)
+- **[L2]** Removed `tenacity` from both `requirements.txt` files (unused — circuit breaker has its own retry)
+- **[L3]** Removed `PyMuPDF` from `scheduler/requirements.txt` (only used by backend)
+- **[L4]** Stabilized Realtime subscription in `Dashboard.jsx` — subscribe once on mount instead of churning on filter changes
+- **[L5]** Created `supabase/migrations/002_audit_fixes.sql` to tighten `telegram_link_codes` RLS from `using (true)` to `using (false)`
 
 ## File Index (key files only)
 ```
@@ -268,7 +286,8 @@ jobpulse/
 │       ├── job-fetch.yml             ← SHA-pinned job scheduler (every 2h)
 │       └── telegram-bot.yml         ← Option B: bot runner (every 6h)
 ├── supabase/migrations/
-│   └── 001_initial_schema.sql        ← Run in Supabase SQL Editor
+│   ├── 001_initial_schema.sql        ← Run in Supabase SQL Editor
+│   └── 002_audit_fixes.sql           ← Opus audit: tightens telegram_link_codes RLS
 ├── scheduler/
 │   ├── main.py                       ← Entry point
 │   ├── deduplicator.py
@@ -291,6 +310,7 @@ jobpulse/
 ├── backend/
 │   ├── main.py                       ← FastAPI app (START_TELEGRAM_BOT controls bot)
 │   ├── auth.py                       ← JWT middleware (Security Patch #1)
+│   ├── db.py                         ← Singleton Supabase client (Opus audit C3)
 │   ├── telegram_handlers.py          ← Bot handlers (used by both options)
 │   ├── Dockerfile
 │   ├── fly.toml                      ← Legacy Fly.io config (kept for reference)

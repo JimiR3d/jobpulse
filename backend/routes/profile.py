@@ -17,9 +17,9 @@ from groq import Groq
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from supabase import create_client
 
 from auth import get_current_user_id
+from db import get_supabase
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -27,12 +27,6 @@ logger = logging.getLogger("jobpulse.backend")
 
 _MAX_PDF_SIZE = 5 * 1024 * 1024  # 5MB
 
-
-def get_supabase():
-    return create_client(
-        os.environ["SUPABASE_URL"],
-        os.environ["SUPABASE_SERVICE_ROLE_KEY"],
-    )
 
 
 # ── Resume upload + parsing ──────────────────────────────────────
@@ -195,7 +189,7 @@ Output ONLY the final paragraph, no quotes, no conversational filler."""
         desc = desc.strip('"').strip("'")
         return {"description": desc}
     except Exception as e:
-        logger.warning(f"Failed to generate description: {e}")
+        logger.warning(json.dumps({"event": "generate_description_error", "error": str(e)}))
         raise HTTPException(status_code=500, detail="Failed to generate AI description")
 
 

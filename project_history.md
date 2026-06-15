@@ -55,5 +55,17 @@
 - Embedded `job_index` natively inside the JSON prompt instructions. This ensures that if the LLM skips a job, our internal system catches the misalignment and instantly recovers it using a safe fallback, guaranteeing zero pipeline crashes.
 
 **Open items for next session:**
-- [ ] Debug the "Degraded Sources" and "Stale Job Feed" issues caused by the scheduler update.
-- [ ] Ensure frontend data reflects the latest AI evaluations cleanly.
+- [x] Debug the "Degraded Sources" and "Stale Job Feed" issues caused by the scheduler update.
+- [x] Ensure frontend data reflects the latest AI evaluations cleanly.
+
+### Session 2026-06-15 — Bug Fixes for Batched Architecture
+**Tasks completed:**
+- Fixed strict Pydantic validation that stalled jobs at a score of 50 due to case-sensitivity and unhandled JSON array formats.
+- Reduced Groq batch size to 7 and added a 60-second sleep handler for `groq.RateLimitError` to prevent the 6,000 TPM limit from causing the Jina fetcher to report 0 jobs and degrade source health.
+
+**Key decisions:**
+- Applied deep lowercase validation via `@model_validator(mode='before')` to ensure AI inconsistencies do not break strictly typed Pydantic literals.
+- Enforced automated rate limit backoffs for Groq APIs to safeguard against TPM exhaustion without completely failing the pipeline.
+
+**Open items for next session:**
+- [ ] Verify functionality using Opus in the next session.

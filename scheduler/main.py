@@ -181,7 +181,7 @@ def run() -> None:
         )
 
         passed_count = 0
-        BATCH_SIZE = 15
+        BATCH_SIZE = 7
 
         for batch in chunk_list(new_jobs, BATCH_SIZE):
             # ── Stage 1: Remote check ────────────────────────────
@@ -252,6 +252,9 @@ def run() -> None:
                             
                             currency = score_result.get("currency_signal", "unknown")
                             match = save_match(job_id, user["id"], stage1, stage2, score_result)
+                            if match is None:
+                                log("save_match_duplicate", job_id=job_id, user_id=user["id"])
+
 
                             # Queue Telegram alert if score meets threshold
                             threshold = user.get("notification_threshold", 70)
@@ -288,7 +291,7 @@ def run() -> None:
             pending_alerts.clear()
 
         # Update source health after processing
-        pass_rate = passed_count / max(len(raw_jobs), 1)
+        pass_rate = passed_count / max(len(new_jobs), 1)
         update_source_health(source["id"], len(raw_jobs), error, pass_rate)
 
         # Log the run to scheduler_logs

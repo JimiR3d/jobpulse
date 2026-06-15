@@ -57,6 +57,7 @@ export default function Dashboard() {
 
   // Scoped Supabase Realtime — Security Patch #8
   // Filters to user's own matches via both channel filter AND RLS
+  // Uses a stable subscription that doesn't churn on filter changes
   useEffect(() => {
     let channel
 
@@ -72,16 +73,14 @@ export default function Dashboard() {
           table: 'job_matches',
           filter: `user_id=eq.${user.id}`,
         }, () => {
-          // Increment badge and re-fetch if on New tab
           setNewJobCount(n => n + 1)
-          if (activeTab === 'new') fetchJobs('new')
         })
         .subscribe()
     }
 
     subscribe()
     return () => { if (channel) supabase.removeChannel(channel) }
-  }, [activeTab, fetchJobs])
+  }, [])  // Stable — subscribe once on mount
 
   function handleStatusChange(matchId, newStatus) {
     setJobs(prev => prev.filter(j => {

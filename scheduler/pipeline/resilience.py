@@ -14,6 +14,7 @@ They reset (to closed) on the next process start (each GitHub Actions run).
 
 import logging
 import time
+import groq
 
 logger = logging.getLogger("jobpulse.scheduler")
 
@@ -85,6 +86,16 @@ class CircuitBreaker:
                 result = fn(*args, **kwargs)
                 self.record_success()
                 return result
+            except groq.RateLimitError as e:
+                logger.warning(
+                    '{"event": "rate_limit_hit", "breaker": "%s", "attempt": %d, "sleep": 60}',
+                    self.name,
+                    attempt,
+                )
+                time.sleep(60)
+                if attempt == max_retries:
+                    self.record_failure()
+                    return fallback
             except Exception as e:
                 self.record_failure()
                 if attempt == max_retries:
