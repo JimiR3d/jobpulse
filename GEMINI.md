@@ -112,8 +112,8 @@ TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 - Frontend: `VITE_` prefix safe for `SUPABASE_URL` and `SUPABASE_ANON_KEY` only — never API keys
 
 ### AI Model Usage
-- Stage 1 + Stage 2: **Groq LLaMA 3.1 8B Instant** — structured JSON output, keeps us under 100k TPD free-tier limits.
-- Stage 3: **Gemini 1.5 Flash Latest** (`gemini-1.5-flash-latest`) — match scoring against user profile.
+- Stage 1 + Stage 2: **Groq LLaMA 3.3 70B** — the most intelligent open-source JSON classifier available.
+- Stage 3: **Gemini 2.5 Pro** — highly intelligent contextual reasoning to strictly match and penalize irrelevant jobs.
 - Resume parsing + Jina extraction + GitHub README: **Groq LLaMA 3.3 70B**
 - **Batched Processing**: The pipeline processes jobs in batches of 15 per API call. This speeds up the scheduler significantly and prevents GitHub Actions 25-minute timeouts during traffic spikes while respecting the Gemini 15 RPM limit.
 
@@ -137,6 +137,7 @@ TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 2. Settings → Secrets → Actions → add:
    `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`
 3. Actions → "Job Fetch Scheduler" → Run workflow manually first → check logs + `scheduler_logs` table
+*(Note: To stay within the Groq 100,000 TPD free tier while using 70B models, the scheduler cron runs twice a day instead of every 2 hours).*
 
 ### Step 0c — Vercel Frontend (required by both options)
 1. [vercel.com](https://vercel.com) → New Project → Import GitHub repo

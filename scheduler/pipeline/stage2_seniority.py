@@ -56,12 +56,12 @@ def _call_groq_batch(jobs: list[dict], client: Groq) -> list[dict]:
         safe = prepare_job_for_llm(job)
         jobs_text_lines.append(
             f"[{idx}] Title: {safe.get('title', '')}\n"
-            f"Description: {(safe.get('description') or '')[:600]}\n---"
+            f"Description: {(safe.get('description') or '')[:1000]}\n---"
         )
 
     prompt = _PROMPT_TEMPLATE.format(jobs_text="\n".join(jobs_text_lines))
     resp = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.0,
         max_tokens=3000,

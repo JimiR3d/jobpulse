@@ -2,7 +2,7 @@ name: JobPulse Scheduler
 
 on:
   schedule:
-    - cron: '0 */2 * * *'   # Every 2 hours — 12 runs/day
+    - cron: '0 0,12 * * *'  # Twice a day (midnight and noon) — keeps 70B inside 100k limit
   workflow_dispatch:          # Manual trigger from GitHub Actions tab
 
 jobs:
