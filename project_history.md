@@ -68,4 +68,20 @@
 - Enforced automated rate limit backoffs for Groq APIs to safeguard against TPM exhaustion without completely failing the pipeline.
 
 **Open items for next session:**
-- [ ] Verify functionality using Opus in the next session.
+- [x] Verify functionality using Opus in the next session.
+
+### Session 2026-06-15 — Opus Deep Audit & Final Polish
+**Tasks completed:**
+- Conducted full codebase audit of scheduler, backend, frontend, and database configurations.
+- Implemented 14 distinct fixes across all components, ranging from critical logic flaws to dependency cleanup.
+- Executed the RLS tightening migration on `telegram_link_codes` via Supabase MCP.
+
+**Key decisions:**
+- Changed `pass_rate` health calculation to use `new_jobs` as the denominator rather than `raw_jobs`. This prevents sources from falsely degrading their own health when outputting known duplicates.
+- Integrated `db.py` to provide a true singleton Supabase instance for the FastAPI backend, completely removing connection overhead from all endpoints.
+- Tightened frontend queries using application-level logic instead of vulnerable nested PostgREST joins.
+- Prevented pipeline failures when Jina persistently drops connections by finally wiring `jina_breaker` into `jina_fetcher.py`.
+
+**Open items for next session:**
+- [ ] Monitor the singleton Supabase client behavior under live FastAPI concurrent requests.
+- [ ] Watch the scheduler via GitHub Actions to ensure `jina_breaker` and `pass_rate` improvements trigger cleanly.
