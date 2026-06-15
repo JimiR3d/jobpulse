@@ -43,4 +43,17 @@
 - Acknowledged that scaling up to 30+ sources requires a batch-processing architecture for the Gemini AI pipeline, otherwise the strict 15 RPM limit will cause the workflow to exceed the 25-minute GitHub Actions maximum limit.
 
 **Open items for next session:**
-- [ ] Refactor AI Pipeline to use Batched Prompt Architecture (sending 10-15 jobs in a single prompt) to bypass free-tier rate limit bottlenecks.
+- [x] Refactor AI Pipeline to use Batched Prompt Architecture (sending 10-15 jobs in a single prompt) to bypass free-tier rate limit bottlenecks.
+
+### Session 2026-06-15 — Batched Prompt Architecture
+**Tasks completed:**
+- Refactored `scheduler/main.py` and the pipeline logic to process up to 15 jobs concurrently in a single LLM API call.
+- Migrated from 1-by-1 AI processing to strict JSON array validation using Pydantic array structures and `job_index` tracking.
+- Successfully eliminated the 25-minute GitHub Actions timeout risk while perfectly adhering to Gemini's 15 RPM limits.
+
+**Key decisions:**
+- Embedded `job_index` natively inside the JSON prompt instructions. This ensures that if the LLM skips a job, our internal system catches the misalignment and instantly recovers it using a safe fallback, guaranteeing zero pipeline crashes.
+
+**Open items for next session:**
+- [ ] Debug the "Degraded Sources" and "Stale Job Feed" issues caused by the scheduler update.
+- [ ] Ensure frontend data reflects the latest AI evaluations cleanly.
