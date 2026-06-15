@@ -113,7 +113,7 @@ TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
 ### AI Model Usage
 - Stage 1 + Stage 2: **Groq LLaMA 3.3 70B** — the most intelligent open-source JSON classifier available.
-- Stage 3: **Gemini 2.5 Pro** — highly intelligent contextual reasoning to strictly match and penalize irrelevant jobs.
+- Stage 3: **Gemini 3.5 Pro** — highly intelligent contextual reasoning to strictly match and penalize irrelevant jobs.
 - Resume parsing + Jina extraction + GitHub README: **Groq LLaMA 3.3 70B**
 - **Batched Processing**: The pipeline processes jobs in batches of 15 per API call. This speeds up the scheduler significantly and prevents GitHub Actions 25-minute timeouts during traffic spikes while respecting the Gemini 15 RPM limit.
 
