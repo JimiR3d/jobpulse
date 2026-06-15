@@ -227,12 +227,18 @@ When your $0 budget constraints relax OR if the 10-min bot gap bothers you:
 - **Render free tier + Telegram bot**: `START_TELEGRAM_BOT` MUST be `false` on free tier. If both run together and the service sleeps, the bot thread is killed on sleep but won't restart cleanly on wake.
 - **Option B bot gap**: ~10 min gap between 6-hour GitHub Actions restarts. Telegram queues messages during the gap — no commands lost, just delayed.
 - **UptimeRobot required for Option B**: Without it, Render free tier sleeps after 15min and cold starts take 30–60s, making the API feel broken.
-- **Groq rate limits**: Free tier is generous but Stage 1 + Stage 2 call per job means ~2 calls/job. 0.5s sleep between jobs in scheduler helps.
+- **Groq rate limits**: Free tier is generous but Stage 1 + Stage 2 call per job means ~2 calls/job. The 4.1s sleep handles this automatically.
+- **Gemini Free Tier rate limits**: 15 requests per minute. `scheduler/main.py` enforces a strictly timed 4.1s `time.sleep()` per job to guarantee it never exceeds this.
+- **GitHub Actions timeout**: Free tier runs are killed after 25 minutes. If >300 jobs are fetched at once, the 4.1s sleep will cause the workflow to timeout. Telegram alerts are dispatched *per source* to ensure alerts aren't lost if this happens.
 - **Jina AI**: Rate-limited at ~10 req/min — 6s sleep after each Jina call is enforced in `jina_fetcher.py`
 - **Render Blueprint**: Render reads `render.yaml` from repo root by default. To use `render-free.yaml`, you must specify it in the Blueprint settings during setup.
 - **Library source toggles**: Toggling a library source affects ALL users globally (MVP single-user only). For multi-user: needs `user_source_overrides` junction table. See TODO in `sources.py`.
 - **FastAPI `on_event` deprecation**: `@app.on_event("startup")` still works in FastAPI 0.115.5 but logs deprecation warnings. Will be replaced with lifespan handler in a future cleanup pass.
 - **Jina circuit breaker**: `jina_breaker` is defined in `resilience.py` but not yet wired into `jina_fetcher.py`. Jina failures timeout naturally (45s) but don't trip the breaker.
+- **Browser Caching on Frontend**: Fetch requests can be aggressively cached by the browser, causing stale data (especially empty arrays for `user_profiles`). `Cache-Control` headers are mandatory in `api.js`.
+- **CORS Preflight**: Adding `Cache-Control` triggers `OPTIONS` preflight. `backend/main.py` must explicitly include it in `allow_headers`.
+- **Supabase RS256 JWTs**: Supabase migrated to RS256 signing keys. Backend must use `supabase.auth.get_user(token)` instead of `PyJWT` local validation to handle this securely.
+- **PostgREST 1-to-1 Joins**: PostgREST joins on 1-to-1 relationships can unexpectedly return empty arrays. Backend routes explicitly run sequential queries instead of relying on magic `.select('*, user_profiles(*)')` joins.
 
 ### Audit Fixes Applied (2026-06-15)
 - Added `feedparser==6.0.11` to `backend/requirements.txt` (was missing — `imports.py` imports it)
@@ -240,6 +246,12 @@ When your $0 budget constraints relax OR if the 10-min bot gap bothers you:
 - Fixed `"now()"` string literal → `datetime.now(timezone.utc).isoformat()` in scheduler `update_source_health`
 - Added `vercel.json` to `frontend/` with SPA rewrite rule (prevents 404 on page refresh)
 - Fixed `user_profiles` list/dict normalization in scheduler `main.py` (Supabase joins return list)
+- Refactored backend JWT auth verification to use Supabase's native RS256-compatible `get_user()`
+- Refactored `get_profile` to use explicit sequential queries rather than PostgREST joins
+- Added Auto-write AI description generator utilizing Groq LLaMA 3
+- Added strict 4.1s circuit breaker delays to scheduler to respect 15 RPM Gemini limits
+- Updated frontend CORS and cache-busting logic to fix vanishing profile data
+- Moved scheduler Telegram alerts to dispatch mid-run (per-source) to protect against 25-minute workflow timeouts
 
 ## File Index (key files only)
 ```
