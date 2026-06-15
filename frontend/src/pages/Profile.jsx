@@ -13,6 +13,7 @@ export default function Profile() {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [autoGenerating, setAutoGenerating] = useState(false)
 
   // Form state
   const [nlDesc, setNlDesc] = useState('')
@@ -45,7 +46,7 @@ export default function Profile() {
     try {
       const data = await profileApi.get()
       setProfile(data)
-      const p = data.user_profiles || {}
+      const p = Array.isArray(data.user_profiles) ? (data.user_profiles[0] || {}) : (data.user_profiles || {})
       setNlDesc(p.natural_language_description || '')
       setSkills(p.skills || [])
       setMinScore(p.min_display_score || 55)
@@ -98,7 +99,15 @@ export default function Profile() {
     try {
       const result = await profileApi.uploadResume(file)
       setUploadResult(result.parsed)
-      setSkills(result.parsed.skills || skills)
+      
+      const newSkills = result.parsed.skills || skills
+      setSkills(newSkills)
+      
+      // Auto-save so they don't vanish if the user leaves
+      await profileApi.update({
+        skills: newSkills,
+        target_roles: result.parsed.inferred_roles || [],
+      })
     } catch (e) {
       alert('Upload failed: ' + e.message)
     } finally {
@@ -109,8 +118,20 @@ export default function Profile() {
   function handleDrop(e) {
     e.preventDefault()
     setDragOver(false)
-    const file = e.dataTransfer.files[0]
+    const file = e.dataTransfer?.files[0]
     if (file) handleResumeUpload(file)
+  }
+
+  async function handleAutoGenerate() {
+    setAutoGenerating(true)
+    try {
+      const res = await profileApi.generateDescription(skills, seniorityLevels)
+      setNlDesc(res.description)
+    } catch (e) {
+      alert('AI Generation failed: ' + e.message)
+    } finally {
+      setAutoGenerating(false)
+    }
   }
 
   function addSkill() {
@@ -278,7 +299,17 @@ export default function Profile() {
 
       {/* Natural language description */}
       <div className="card">
-        <h2 className="section-title mb-1">What I'm Looking For</h2>
+        <div className="flex justify-between items-start mb-1">
+          <h2 className="section-title">What I'm Looking For</h2>
+          <button
+            onClick={handleAutoGenerate}
+            disabled={autoGenerating}
+            className="btn btn-sm btn-secondary text-brand-400 hover:text-brand-300 border-brand-900/50"
+          >
+            {autoGenerating ? <RefreshCw size={12} className="animate-spin mr-1" /> : <Bot size={12} className="mr-1" />}
+            Auto-write with AI
+          </button>
+        </div>
         <p className="section-subtitle mb-4">
           Plain English description — used by Gemini to score every job against your goals
         </p>

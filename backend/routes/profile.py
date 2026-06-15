@@ -144,6 +144,61 @@ Resume text:
     return {"success": True, "parsed": parsed}
 
 
+# ── Profile auto-generation ──────────────────────────────────────
+
+class GenerateDescriptionRequest(BaseModel):
+    skills: List[str]
+    seniority_levels: List[str]
+
+@router.post("/generate_description")
+@limiter.limit("10/minute")
+def generate_description(
+    request: Request,
+    body: GenerateDescriptionRequest,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Generate a natural language description using Groq based on current skills and seniority."""
+    supabase = get_supabase()
+    
+    # Get inferred roles from user profile
+    resp = supabase.table("user_profiles").select("target_roles").eq("user_id", user_id).execute()
+    roles = []
+    if resp.data and resp.data[0].get("target_roles"):
+        roles = resp.data[0]["target_roles"]
+
+    skills_str = ", ".join(body.skills) if body.skills else "No specific skills listed yet."
+    roles_str = ", ".join(roles) if roles else "Any relevant tech roles."
+    seniority_str = ", ".join(body.seniority_levels) if body.seniority_levels else "Entry-level"
+
+    prompt = f"""Write a short, punchy 'What I'm looking for' summary (max 3 sentences) for a software professional.
+It should be written in the first person ("I am looking for...").
+Make it sound ambitious but realistic.
+
+Details about me:
+- Skills: {skills_str}
+- Seniority levels I'm open to: {seniority_str}
+- Roles I fit: {roles_str}
+- Preferences to include: I prefer remote work with no country restrictions, and ideally roles paying in foreign currency (USD/GBP/EUR). I'm eager to learn and willing to be trained.
+
+Output ONLY the final paragraph, no quotes, no conversational filler."""
+
+    groq_client = Groq(api_key=os.environ["GROQ_API_KEY"])
+    try:
+        chat_resp = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=200,
+        )
+        desc = chat_resp.choices[0].message.content.strip()
+        # Clean up any quotes
+        desc = desc.strip('"').strip("'")
+        return {"description": desc}
+    except Exception as e:
+        logger.warning(f"Failed to generate description: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate AI description")
+
+
 # ── Profile get/update ───────────────────────────────────────────
 
 class ProfileUpdate(BaseModel):

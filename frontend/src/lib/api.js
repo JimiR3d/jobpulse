@@ -88,6 +88,11 @@ export const profileApi = {
   get: () => request('GET', '/api/profile/'),
   update: (data) => request('PATCH', '/api/profile/', data),
   uploadResume: (file) => uploadFile('/api/profile/resume', file),
+  generateDescription: (skills, seniorityLevels) => 
+    request('POST', '/api/profile/generate_description', { 
+      skills, 
+      seniority_levels: seniorityLevels 
+    }),
 }
 
 // ── Sources API ───────────────────────────────────────────────
