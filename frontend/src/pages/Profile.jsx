@@ -53,6 +53,15 @@ export default function Profile() {
       setShowSenior(p.show_senior || false)
       setSeniorityLevels(p.seniority_levels || ['internship', 'entry', 'junior'])
       setNotifThreshold(data.notification_threshold || 70)
+      
+      // If they have a resume in the DB, show the success state
+      if (data.resumes && data.resumes.length > 0) {
+        setUploadResult({
+          education: "Saved in profile",
+          experience_years: "Saved in profile",
+          inferred_roles: p.target_roles || []
+        })
+      }
     } catch (e) {
       console.error(e)
     } finally {

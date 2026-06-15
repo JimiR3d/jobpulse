@@ -217,17 +217,24 @@ class ProfileUpdate(BaseModel):
 
 @router.get("/")
 def get_profile(user_id: str = Depends(get_current_user_id)):
-    """Return the full user record + profile joined."""
+    """Return the full user record + profile + latest resume."""
     supabase = get_supabase()
-    resp = (
-        supabase.table("users")
-        .select("*, user_profiles(*), resumes(id, parsed_skills, created_at)")
-        .eq("id", user_id)
-        .order("created_at", desc=True, foreign_table="resumes")
-        .limit(1, foreign_table="resumes")
-        .execute()
-    )
-    return resp.data[0] if resp.data else {}
+    
+    # 1. Get user record
+    user_resp = supabase.table("users").select("*").eq("id", user_id).execute()
+    if not user_resp.data:
+        return {}
+    user_data = user_resp.data[0]
+    
+    # 2. Get user_profile
+    profile_resp = supabase.table("user_profiles").select("*").eq("user_id", user_id).execute()
+    user_data["user_profiles"] = profile_resp.data[0] if profile_resp.data else {}
+    
+    # 3. Get latest resume
+    resume_resp = supabase.table("resumes").select("id, parsed_skills, created_at").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+    user_data["resumes"] = resume_resp.data
+    
+    return user_data
 
 
 @router.patch("/")
