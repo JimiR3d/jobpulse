@@ -241,8 +241,20 @@ def run() -> None:
                         )
                     )
 
-            # Groq rate limit buffer
-            time.sleep(0.5)
+            # Free tier API rate limit buffer:
+            # Gemini: 15 RPM limit = 1 request every 4 seconds.
+            # Groq: 30 RPM limit = 2 requests per job * 15 jobs/min = 30 req/min.
+            # 4.1 seconds perfectly respects BOTH free tier limits.
+            time.sleep(4.1)
+
+        # Send Telegram alerts for this source immediately so we don't lose them if GitHub Actions times out
+        if pending_alerts:
+            log("telegram_alerts_sending_batch", count=len(pending_alerts), source=source["name"])
+            try:
+                send_alerts(pending_alerts, BOT_TOKEN)
+            except Exception as e:
+                log("telegram_alerts_error", error=str(e))
+            pending_alerts.clear()
 
         # Update source health after processing
         pass_rate = passed_count / max(len(raw_jobs), 1)
