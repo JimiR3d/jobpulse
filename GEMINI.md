@@ -115,6 +115,7 @@ TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 - Stage 1 + Stage 2: **Groq LLaMA 3.3 70B** — fast, structured JSON output
 - Stage 3: **Gemini 1.5 Flash** — match scoring against user profile
 - Resume parsing + Jina extraction + GitHub README: **Groq LLaMA 3.3 70B**
+- **Batched Processing**: The pipeline processes jobs in batches of 15 per API call. This speeds up the scheduler significantly and prevents GitHub Actions 25-minute timeouts during traffic spikes while respecting the Gemini 15 RPM limit.
 
 ### Database Conventions
 - All tables have RLS enabled — no exceptions
@@ -252,6 +253,8 @@ When your $0 budget constraints relax OR if the 10-min bot gap bothers you:
 - Added strict 4.1s circuit breaker delays to scheduler to respect 15 RPM Gemini limits
 - Updated frontend CORS and cache-busting logic to fix vanishing profile data
 - Moved scheduler Telegram alerts to dispatch mid-run (per-source) to protect against 25-minute workflow timeouts
+- Refactored scheduler pipeline to use a **Batched Prompt Architecture**, processing jobs in batches of 15. This reduces Gemini requests by a factor of 15 and completely eliminates GitHub Action timeouts on massive fetches.
+- Updated pipeline models to `RemoteCheckBatchResult`, `SeniorityBatchResult`, and `MatchScoreBatchResult` with `job_index` tracking to prevent crashing if the LLM drops a job.
 
 ## File Index (key files only)
 ```

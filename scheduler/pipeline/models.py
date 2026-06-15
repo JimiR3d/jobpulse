@@ -12,17 +12,23 @@ from pydantic import BaseModel, Field, field_validator
 
 class RemoteCheckResult(BaseModel):
     """Output of Stage 1 — remote location verification."""
-
+    
+    job_index: int = -1
     remote_type: Literal[
         "worldwide", "us_only", "eu_only", "country_specific", "hybrid_only", "unknown"
     ] = "unknown"
     confidence: Literal["high", "medium", "low"] = "low"
     reason: str = ""
 
+class RemoteCheckBatchResult(BaseModel):
+    """Batch wrapper for Stage 1."""
+    results: List[RemoteCheckResult] = Field(default_factory=list)
+
 
 class SeniorityResult(BaseModel):
     """Output of Stage 2 — seniority and role type classification."""
-
+    
+    job_index: int = -1
     seniority: Literal[
         "internship", "entry", "junior", "mid", "senior", "lead", "unknown"
     ] = "unknown"
@@ -33,10 +39,15 @@ class SeniorityResult(BaseModel):
     is_trainee_program: bool = False
     confidence: Literal["high", "medium", "low"] = "low"
 
+class SeniorityBatchResult(BaseModel):
+    """Batch wrapper for Stage 2."""
+    results: List[SeniorityResult] = Field(default_factory=list)
+
 
 class MatchScoreResult(BaseModel):
     """Output of Stage 3 — candidate match scoring."""
-
+    
+    job_index: int = -1
     score: int = Field(default=50, ge=0, le=100)
     match_reasons: List[str] = Field(default_factory=list)
     currency_signal: Literal["usd", "gbp", "eur", "local", "unknown"] = "unknown"
@@ -54,8 +65,13 @@ class MatchScoreResult(BaseModel):
         """Cap disqualifiers at 3."""
         return v[:3]
 
+class MatchScoreBatchResult(BaseModel):
+    """Batch wrapper for Stage 3."""
+    results: List[MatchScoreResult] = Field(default_factory=list)
+
 
 # Pre-instantiated fallbacks — returned when LLM fails or circuit opens
 REMOTE_FALLBACK = RemoteCheckResult()
 SENIORITY_FALLBACK = SeniorityResult()
 SCORE_FALLBACK = MatchScoreResult()
+

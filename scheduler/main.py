@@ -22,9 +22,9 @@ from fetchers.api_fetcher import fetch_from_api
 from fetchers.jina_fetcher import fetch_jina_source
 from fetchers.rss_fetcher import fetch_rss
 from notifier import send_alerts
-from pipeline.stage1_remote import check_remote, should_discard
-from pipeline.stage2_seniority import check_seniority
-from pipeline.stage3_score import score_job
+from pipeline.stage1_remote import check_remote_batch, should_discard
+from pipeline.stage2_seniority import check_seniority_batch
+from pipeline.stage3_score import score_job_batch
 
 # ── Logging setup ────────────────────────────────────────────────
 load_dotenv()
@@ -150,6 +150,10 @@ def run() -> None:
         return
 
     pending_alerts: list = []
+    
+    def chunk_list(lst, size):
+        for i in range(0, len(lst), size):
+            yield lst[i:i + size]
 
     for source in sources:
         log("source_fetch_start", source=source["name"], type=source["source_type"])
@@ -177,75 +181,102 @@ def run() -> None:
         )
 
         passed_count = 0
+        BATCH_SIZE = 15
 
-        for job in new_jobs:
+        for batch in chunk_list(new_jobs, BATCH_SIZE):
             # ── Stage 1: Remote check ────────────────────────────
-            stage1 = check_remote(job, groq_client)
-            if should_discard(stage1):
+            stage1_results = check_remote_batch(batch, groq_client)
+            
+            valid_jobs = []
+            for job, stage1 in zip(batch, stage1_results):
+                if should_discard(stage1):
+                    continue
+                valid_jobs.append((job, stage1))
+
+            if not valid_jobs:
+                time.sleep(2.1)
                 continue
 
             # ── Stage 2: Seniority check ─────────────────────────
-            stage2 = check_seniority(job, groq_client)
+            jobs_to_check_seniority = [job for job, _ in valid_jobs]
+            stage2_results = check_seniority_batch(jobs_to_check_seniority, groq_client)
 
-            # Enrich job with classification data
-            job["remote_type"] = stage1["remote_type"]
-            job["seniority"] = stage2["seniority"]
-            job["role_type"] = stage2["role_type"]
-            job["is_trainee"] = stage2.get("is_trainee_program", False)
+            passed_batch_jobs = []
+            for (job, stage1), stage2 in zip(valid_jobs, stage2_results):
+                # Enrich job with classification data
+                job["remote_type"] = stage1["remote_type"]
+                job["seniority"] = stage2["seniority"]
+                job["role_type"] = stage2["role_type"]
+                job["is_trainee"] = stage2.get("is_trainee_program", False)
 
-            # ── Save job to DB ────────────────────────────────────
-            job_id = save_job(job)
-            if not job_id:
-                continue  # Already exists or insert error
+                # ── Save job to DB ────────────────────────────────────
+                job_id = save_job(job)
+                if job_id:
+                    passed_count += 1
+                    passed_batch_jobs.append((job_id, job, stage1, stage2))
 
-            passed_count += 1
+            if passed_batch_jobs:
+                # ── Stage 3: Score against each user ─────────────────
+                for user in users:
+                    profiles = user.get("user_profiles")
+                    # Supabase joins may return a list or a dict — normalize
+                    if isinstance(profiles, list):
+                        profile = profiles[0] if profiles else None
+                    else:
+                        profile = profiles
+                    if not profile:
+                        continue
 
-            # ── Stage 3: Score against each user ─────────────────
-            for user in users:
-                profiles = user.get("user_profiles")
-                # Supabase joins may return a list or a dict — normalize
-                if isinstance(profiles, list):
-                    profile = profiles[0] if profiles else None
-                else:
-                    profile = profiles
-                if not profile:
-                    continue
+                    jobs_for_user = []
+                    job_ids_for_user = []
+                    stage_data_for_user = []
 
-                # Skip seniors if user hasn't enabled them
-                if (
-                    stage2["seniority"] in ("senior", "lead")
-                    and not profile.get("show_senior")
-                ):
-                    continue
+                    for job_id, job, stage1, stage2 in passed_batch_jobs:
+                        # Skip seniors if user hasn't enabled them
+                        if (
+                            stage2["seniority"] in ("senior", "lead")
+                            and not profile.get("show_senior")
+                        ):
+                            continue
+                        jobs_for_user.append(job)
+                        job_ids_for_user.append(job_id)
+                        stage_data_for_user.append((stage1, stage2))
+                    
+                    if jobs_for_user:
+                        score_results = score_job_batch(jobs_for_user, profile)
+                        
+                        for i, score_result in enumerate(score_results):
+                            job = jobs_for_user[i]
+                            job_id = job_ids_for_user[i]
+                            stage1, stage2 = stage_data_for_user[i]
+                            
+                            currency = score_result.get("currency_signal", "unknown")
+                            match = save_match(job_id, user["id"], stage1, stage2, score_result)
 
-                score_result = score_job(job, profile)
-                currency = score_result.get("currency_signal", "unknown")
+                            # Queue Telegram alert if score meets threshold
+                            threshold = user.get("notification_threshold", 70)
+                            freq = user.get("notification_frequency", "realtime")
+                            if (
+                                match
+                                and score_result["score"] >= threshold
+                                and user.get("telegram_chat_id")
+                                and freq == "realtime"
+                            ):
+                                job["source_name"] = source["name"]
+                                pending_alerts.append(
+                                    (
+                                        user["telegram_chat_id"],
+                                        job,
+                                        {**match, "currency_signal": currency},
+                                    )
+                                )
+                        
+                        # Gemini: 15 RPM limit = 1 request every 4 seconds.
+                        time.sleep(4.1)
 
-                match = save_match(job_id, user["id"], stage1, stage2, score_result)
+            # Free tier API rate limit buffer for Groq:
+            time.sleep(2.1)
 
-                # Queue Telegram alert if score meets threshold
-                threshold = user.get("notification_threshold", 70)
-                freq = user.get("notification_frequency", "realtime")
-                if (
-                    match
-                    and score_result["score"] >= threshold
-                    and user.get("telegram_chat_id")
-                    and freq == "realtime"
-                ):
-                    job["source_name"] = source["name"]
-                    pending_alerts.append(
-                        (
-                            user["telegram_chat_id"],
-                            job,
-                            {**match, "currency_signal": currency},
-                        )
-                    )
-
-            # Free tier API rate limit buffer:
-            # Gemini: 15 RPM limit = 1 request every 4 seconds.
-            # Groq: 30 RPM limit = 2 requests per job * 15 jobs/min = 30 req/min.
-            # 4.1 seconds perfectly respects BOTH free tier limits.
-            time.sleep(4.1)
 
         # Send Telegram alerts for this source immediately so we don't lose them if GitHub Actions times out
         if pending_alerts:

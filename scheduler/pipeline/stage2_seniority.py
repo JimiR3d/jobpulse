@@ -25,14 +25,16 @@ import re
 from groq import Groq
 
 from pipeline.llm_safety import prepare_job_for_llm
-from pipeline.models import SeniorityResult, SENIORITY_FALLBACK
+from pipeline.models import SeniorityBatchResult, SENIORITY_FALLBACK
 from pipeline.resilience import groq_breaker
 
 logger = logging.getLogger("jobpulse.scheduler")
 
-_PROMPT_TEMPLATE = """What seniority level and role type is this job?
-Return ONLY valid JSON, no other text, no markdown fences:
-{{"seniority": "internship" | "entry" | "junior" | "mid" | "senior" | "lead" | "unknown", "role_type": "full-time" | "internship" | "contract" | "freelance" | "unknown", "years_required": number or null, "is_trainee_program": true | false, "confidence": "high" | "medium" | "low"}}
+_PROMPT_TEMPLATE = """What seniority level and role type are these jobs?
+Return ONLY valid JSON, no other text, no markdown fences.
+Your response MUST be a JSON object containing a "results" array.
+Inside the array, return exactly one object per job with its matching job_index:
+{{"results": [{{"job_index": 0, "seniority": "internship" | "entry" | "junior" | "mid" | "senior" | "lead" | "unknown", "role_type": "full-time" | "internship" | "contract" | "freelance" | "unknown", "years_required": number or null, "is_trainee_program": true | false, "confidence": "high" | "medium" | "low"}}]}}
 
 Seniority rules:
 - internship: explicitly internship or co-op
@@ -44,39 +46,61 @@ Seniority rules:
 
 is_trainee_program: true if explicitly a training program, apprenticeship, or rotational program.
 
-Job Title: {title}
-Description: {description}"""
+Jobs to analyze:
+{jobs_text}"""
 
 
-def _call_groq(job: dict, client: Groq) -> dict:
-    safe = prepare_job_for_llm(job)
-    prompt = _PROMPT_TEMPLATE.format(
-        title=safe.get("title", ""),
-        description=(safe.get("description") or "")[:1500],
-    )
+def _call_groq_batch(jobs: list[dict], client: Groq) -> list[dict]:
+    jobs_text_lines = []
+    for idx, job in enumerate(jobs):
+        safe = prepare_job_for_llm(job)
+        jobs_text_lines.append(
+            f"[{idx}] Title: {safe.get('title', '')}\n"
+            f"Description: {(safe.get('description') or '')[:1000]}\n---"
+        )
+
+    prompt = _PROMPT_TEMPLATE.format(jobs_text="\n".join(jobs_text_lines))
     resp = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.0,
-        max_tokens=150,
+        max_tokens=3000,
+        response_format={"type": "json_object"}
     )
     text = resp.choices[0].message.content.strip()
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
     raw = json.loads(text)
-    validated = SeniorityResult(**raw)
-    return validated.model_dump()
+    validated = SeniorityBatchResult(**raw)
+    
+    result_map = {r.job_index: r.model_dump() for r in validated.results}
+    aligned = []
+    for idx in range(len(jobs)):
+        if idx in result_map:
+            aligned.append(result_map[idx])
+        else:
+            f = SENIORITY_FALLBACK.model_dump()
+            f["job_index"] = idx
+            aligned.append(f)
+    return aligned
 
 
-def check_seniority(job: dict, client: Groq) -> dict:
+def check_seniority_batch(jobs: list[dict], client: Groq) -> list[dict]:
     """
-    Classify job seniority and role type.
-    Returns SeniorityResult dict. Uses circuit breaker + retry.
+    Classify job seniority and role type for a batch of jobs.
+    Returns a list of SeniorityResult dicts. Uses circuit breaker + retry.
     """
+    fallback = []
+    for idx in range(len(jobs)):
+        f = SENIORITY_FALLBACK.model_dump()
+        f["job_index"] = idx
+        fallback.append(f)
+
     return groq_breaker.call_with_fallback(
-        _call_groq,
-        SENIORITY_FALLBACK.model_dump(),
-        job,
+        _call_groq_batch,
+        fallback,
+        jobs,
         client,
         max_retries=3,
     )
+
