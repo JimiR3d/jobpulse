@@ -62,7 +62,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Api-Key"],
+    allow_headers=["Content-Type", "Authorization", "X-Api-Key", "Cache-Control", "Pragma"],
     max_age=86400,
 )
 
