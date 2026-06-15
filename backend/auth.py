@@ -15,21 +15,21 @@ Usage in routes:
 
 import os
 
-import jwt
 from fastapi import Header, HTTPException
+from supabase import create_client
 
-SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET", "")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
 
 def get_current_user_id(authorization: str = Header(...)) -> str:
     """
-    Extract and verify the Supabase JWT from the Authorization header.
+    Extract and verify the Supabase JWT from the Authorization header using Supabase Auth.
     Returns the authenticated user's UUID string.
 
     Raises:
         401 — missing/malformed Authorization header
-        401 — expired token
-        401 — invalid token signature
+        401 — expired or invalid token
     """
     if not authorization.startswith("Bearer "):
         raise HTTPException(
@@ -42,19 +42,13 @@ def get_current_user_id(authorization: str = Header(...)) -> str:
     if not token:
         raise HTTPException(status_code=401, detail="Empty bearer token")
 
-    try:
-        payload = jwt.decode(
-            token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            options={"verify_aud": False},  # Supabase doesn't use the aud claim
-        )
-        user_id: str | None = payload.get("sub")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Token missing subject claim")
-        return user_id
+    supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired — please log in again")
-    except jwt.InvalidTokenError as e:
+    try:
+        user_response = supabase.auth.get_user(token)
+        if not user_response or not user_response.user:
+            raise HTTPException(status_code=401, detail="Token invalid or missing subject claim")
+        return user_response.user.id
+
+    except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
