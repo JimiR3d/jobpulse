@@ -112,8 +112,8 @@ TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 - Frontend: `VITE_` prefix safe for `SUPABASE_URL` and `SUPABASE_ANON_KEY` only — never API keys
 
 ### AI Model Usage
-- Stage 1 + Stage 2: **Groq LLaMA 3.3 70B** — fast, structured JSON output
-- Stage 3: **Gemini 1.5 Flash** — match scoring against user profile
+- Stage 1 + Stage 2: **Groq LLaMA 3.1 8B Instant** — structured JSON output, keeps us under 100k TPD free-tier limits.
+- Stage 3: **Gemini 1.5 Flash Latest** (`gemini-1.5-flash-latest`) — match scoring against user profile.
 - Resume parsing + Jina extraction + GitHub README: **Groq LLaMA 3.3 70B**
 - **Batched Processing**: The pipeline processes jobs in batches of 15 per API call. This speeds up the scheduler significantly and prevents GitHub Actions 25-minute timeouts during traffic spikes while respecting the Gemini 15 RPM limit.
 
@@ -273,6 +273,8 @@ When your $0 budget constraints relax OR if the 10-min bot gap bothers you:
 - **[L3]** Removed `PyMuPDF` from `scheduler/requirements.txt` (only used by backend)
 - **[L4]** Stabilized Realtime subscription in `Dashboard.jsx` — subscribe once on mount instead of churning on filter changes
 - **[L5]** Created `supabase/migrations/002_audit_fixes.sql` to tighten `telegram_link_codes` RLS from `using (true)` to `using (false)`
+- **[P1]** Fixed `gemini-1.5-flash` API 404 error by migrating to `gemini-1.5-flash-latest` in `stage3_score.py`
+- **[P2]** Fixed Groq 100k TPD token limit crashes by switching `stage1_remote.py` and `stage2_seniority.py` from 70B to `llama-3.1-8b-instant` and trimming description prompt lengths from 1000 to 600 characters.
 
 ## File Index (key files only)
 ```

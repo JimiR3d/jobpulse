@@ -84,4 +84,20 @@
 
 **Open items for next session:**
 - [ ] Monitor the singleton Supabase client behavior under live FastAPI concurrent requests.
-- [ ] Watch the scheduler via GitHub Actions to ensure `jina_breaker` and `pass_rate` improvements trigger cleanly.
+- [x] Watch the scheduler via GitHub Actions to ensure `jina_breaker` and `pass_rate` improvements trigger cleanly. (Identified and fixed new rate limit issues)
+
+### Session 2026-06-15 — Pipeline Rate Limit & Model Mapping Fixes
+**Tasks completed:**
+- Debugged GitHub Actions workflow failure (`job-fetch.yml`) which stalled due to API rate limits and model 404 mapping errors.
+- Shifted Groq from 70B to `llama-3.1-8b-instant` and truncated description prompts from 1000 to 600 characters in `stage1_remote.py` and `stage2_seniority.py` to stay under the 100k TPD free-tier limit.
+- Updated `stage3_score.py` to use `gemini-1.5-flash-latest` resolving the `models/gemini-1.5-flash` 404 error.
+- Updated GEMINI.md, task.md, and walkthrough.md to document the bug fixes.
+
+**Key decisions:**
+- Downsized the Groq extraction models to a much faster, rate-limit friendly size to ensure the background cron job remains $0.
+- Acknowledged future roadmap: Gemini 3.5 will be reserved for complex reasoning tasks like automatic job applications and custom cover letter generation.
+
+**Open items for next session:**
+- [ ] Re-verify the `job-fetch.yml` workflow via GitHub Actions UI to ensure the pipeline executes perfectly.
+- [ ] Monitor the singleton Supabase client under live backend requests.
+- [ ] Begin planning the automated job application and cover letter generation features utilizing Gemini 3.5.
