@@ -29,7 +29,7 @@ logger = logging.getLogger("jobpulse.scheduler")
 
 # Configure Gemini on module import
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
-_model = genai.GenerativeModel("gemini-1.5-pro-latest")
+_model = genai.GenerativeModel("gemini-1.5-flash-latest")
 
 _PROMPT_TEMPLATE = """Score these jobs against this candidate's profile. Be generous — the candidate is very open to new roles.
 Return ONLY valid JSON, no other text, no markdown fences.

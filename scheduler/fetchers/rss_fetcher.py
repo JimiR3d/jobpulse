@@ -8,6 +8,7 @@ Handles the common "Role at Company" title pattern from WWR, Remote.co etc.
 import logging
 from typing import List
 
+import time
 import feedparser
 
 logger = logging.getLogger("jobpulse.scheduler")
@@ -31,6 +32,13 @@ def fetch_rss(source: dict) -> List[dict]:
             title = parts[0].strip()
             company = parts[1].strip()
 
+        posted_at = None
+        if hasattr(entry, "published_parsed") and entry.published_parsed:
+            try:
+                posted_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", entry.published_parsed)
+            except Exception:
+                pass
+
         jobs.append(
             {
                 "source_id": source["id"],
@@ -41,7 +49,7 @@ def fetch_rss(source: dict) -> List[dict]:
                 "apply_url": entry.get("link") or "",
                 "salary_range": "",
                 "tags": [],
-                "posted_at": entry.get("published") or None,
+                "posted_at": posted_at,
             }
         )
 
