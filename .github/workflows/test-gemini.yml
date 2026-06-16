@@ -1,0 +1,38 @@
+name: Test Gemini Models
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-gemini:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
+      - name: Install Google GenAI
+        run: pip install google-generativeai
+        
+      - name: List Available Models
+        run: |
+          python -c "
+          import os
+          import google.generativeai as genai
+          api_key = os.environ.get('GEMINI_API_KEY', '')
+          if not api_key:
+              print('ERROR: GEMINI_API_KEY is completely empty in GitHub Secrets!')
+              exit(1)
+              
+          genai.configure(api_key=api_key)
+          try:
+              models = genai.list_models()
+              print('SUCCESS! Here are the models your API key has access to for generateContent:')
+              for m in models:
+                  if 'generateContent' in m.supported_generation_methods:
+                      print(f' - {m.name}')
+          except Exception as e:
+              print(f'API ERROR: {e}')
+          "
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
