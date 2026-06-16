@@ -75,7 +75,7 @@ def _call_groq_batch(jobs: list[dict], user_profile: dict, client: Groq) -> list
     )
     
     resp = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="llama-3.1-8b-instant",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.0,
         max_tokens=3000,
@@ -101,7 +101,7 @@ def _call_groq_batch(jobs: list[dict], user_profile: dict, client: Groq) -> list
 
 def score_job_batch(jobs: list[dict], user_profile: dict, client: Groq) -> list[dict]:
     """
-    Score a batch of jobs against a user profile using Groq (LLaMA 3.3 70B).
+    Score a batch of jobs against a user profile using Groq (LLaMA 3.1 8B).
     Returns a list of MatchScoreResult dicts. Uses circuit breaker + retry.
     """
     fallback = []

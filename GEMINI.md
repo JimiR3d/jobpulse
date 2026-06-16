@@ -112,8 +112,7 @@ TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 - Frontend: `VITE_` prefix safe for `SUPABASE_URL` and `SUPABASE_ANON_KEY` only — never API keys
 
 ### AI Model Usage
-- Stage 1 + Stage 2: **Groq LLaMA 3.1 8B** — fast JSON classification.
-- Stage 3: **Groq LLaMA 3.3 70B** — highly intelligent contextual reasoning to strictly match and penalize irrelevant jobs (migrated from Gemini Flash due to strict 20 req/day limits).
+- Stage 1, Stage 2, and Stage 3: **Groq LLaMA 3.1 8B** — fast JSON classification and contextual reasoning. (Migrated from Gemini Flash and Groq 70B due to strict rate limits and 6,000 TPM ceilings).
 - Resume parsing + Jina extraction + GitHub README: **Groq LLaMA 3.3 70B**
 - Cover Letter Generation: **Gemini Pro Latest** — deep reasoning applied to align resume skills with job descriptions for tailored applications.
 - **Batched Processing**: The pipeline processes jobs in batches of 15 per API call. This speeds up the scheduler significantly and prevents GitHub Actions 25-minute timeouts during traffic spikes while respecting the Gemini 15 RPM limit.

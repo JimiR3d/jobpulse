@@ -124,12 +124,13 @@
 
 ### Session 2026-06-16 — Stage 3 Groq Migration
 **Tasks completed:**
-- Migrated the scheduler's Stage 3 Match Scoring from `gemini-3.5-flash` to `llama-3.3-70b-versatile` on Groq.
+- Migrated the scheduler's Stage 3 Match Scoring from `gemini-3.5-flash` to `llama-3.1-8b-instant` on Groq.
 - Updated `scheduler/pipeline/stage3_score.py` and `scheduler/main.py` to use the `groq_client` instead of `google.generativeai`.
 - Updated `GEMINI.md` to reflect that the background scheduler uses Groq for all three stages to stay within free-tier limits.
 
 **Key decisions:**
-- A hard limit of 20 requests per day for `gemini-3.5-flash` on the free tier made it impossible to process background job matches. Moving Stage 3 to Groq's 70B model maintains high intelligence scoring while utilizing Groq's generous 100k TPD limits.
+- A hard limit of 20 requests per day for `gemini-3.5-flash` on the free tier made it impossible to process background job matches. Moving Stage 3 to Groq fixed the Google API crash.
+- During migration, we initially used `llama-3.3-70b-versatile`, but immediately hit Groq's 6,000 Tokens Per Minute (TPM) limit, which caused 60-second backoffs and GitHub Actions timeouts. We downgraded Stage 3 to `llama-3.1-8b-instant`, which has a higher TPM allowance and guarantees the workflow won't timeout.
 - Gemini is now reserved exclusively for the on-demand Automated Cover Letter generation endpoint, where 20 requests per day is sufficient for manual user interactions.
 
 **Open items for next session:**
