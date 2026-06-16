@@ -98,6 +98,22 @@
 - Acknowledged future roadmap: Gemini 3.5 will be reserved for complex reasoning tasks like automatic job applications and custom cover letter generation.
 
 **Open items for next session:**
-- [ ] Re-verify the `job-fetch.yml` workflow via GitHub Actions UI to ensure the pipeline executes perfectly.
+- [x] Re-verify the `job-fetch.yml` workflow via GitHub Actions UI to ensure the pipeline executes perfectly.
 - [ ] Monitor the singleton Supabase client under live backend requests.
 - [ ] Begin planning the automated job application and cover letter generation features utilizing Gemini 3.5.
+
+### Session 2026-06-16 — Pipeline Hardening & Edge Case Debugging
+**Tasks completed:**
+- Debugged GitHub Actions workflow failure where all jobs were receiving a score of 50 and sources were degrading.
+- Reverted `stage3_score.py` from `gemini-1.5-flash-latest` back to `gemini-1.5-flash` to fix a Google API 404 error that caused the entire pipeline to default to the 50 score fallback.
+- Downgraded the Jina fetcher extraction model in `jina_fetcher.py` from 70B to `llama-3.1-8b-instant` to prevent Groq `429 Too Many Requests` limit errors from marking all sources as degraded.
+- Added `"part-time"` to the strict Pydantic Literal validation in `models.py` since the new 8B model successfully extracts this role type.
+- Updated `rss_fetcher.py` to use `feedparser.published_parsed` to format dates precisely as ISO 8601 timestamps, preventing Supabase `400 Bad Request` database insertion errors.
+
+**Key decisions:**
+- Continued enforcing strict Pydantic schema rules while dynamically expanding allowed values (like "part-time") when smaller open-source models demonstrate valid variations in extraction behavior.
+- Maintained the fallback architectures so that even when Google or Groq APIs fail (404/429), the application doesn't crash but simply warns the user of default behaviors.
+
+**Open items for next session:**
+- [x] Test the completely fixed pipeline. (Confirmed via new logs)
+- [ ] Verify the Automated Cover Letter generation feature on the frontend using `gemini-1.5-pro`.
