@@ -26,7 +26,7 @@ JINA_BASE = "https://r.jina.ai/"
 HEADERS = {"User-Agent": "JobPulse/1.0 (personal job aggregator)"}
 
 _JINA_EXTRACTION_PROMPT = """Extract all job listings from this webpage content.
-Return ONLY a valid JSON array, no other text, no markdown fences.
+Return ONLY a valid JSON object with a single key 'jobs' containing an array of job objects.
 Each job object must have these exact fields:
   title: string (job title)
   company: string (company name, empty string if not found)
@@ -37,8 +37,8 @@ Each job object must have these exact fields:
 
 Rules:
 - Only include actual job listings — not ads, navigation, or headers
-- If no jobs are found, return: []
-- Do not include any text before or after the JSON array
+- If no jobs are found, return: {{"jobs": []}}
+- Do not include any text before or after the JSON
 
 Content:
 {content}"""
@@ -114,12 +114,14 @@ def fetch_jina_source(source: dict, groq_client) -> List[dict]:
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
                 max_tokens=2000,
+                response_format={"type": "json_object"},
             )
             text = response.choices[0].message.content.strip()
             # Strip any accidental markdown fences
             text = re.sub(r"^```(?:json)?\s*", "", text)
             text = re.sub(r"\s*```$", "", text)
-            raw_jobs = json.loads(text)
+            raw_response = json.loads(text)
+            raw_jobs = raw_response.get("jobs", [])
 
             if not isinstance(raw_jobs, list):
                 return []

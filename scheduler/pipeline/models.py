@@ -55,9 +55,7 @@ class SeniorityResult(BaseModel):
     seniority: Literal[
         "internship", "entry", "junior", "mid", "senior", "lead", "unknown"
     ] = "unknown"
-    role_type: Literal[
-        "full-time", "part-time", "internship", "contract", "freelance", "unknown"
-    ] = "unknown"
+    role_type: str = "unknown"
     years_required: Optional[float] = None
     is_trainee_program: bool = False
     confidence: Literal["high", "medium", "low"] = "low"
