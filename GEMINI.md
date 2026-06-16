@@ -38,7 +38,7 @@ Vercel (static)                    → frontend/src/App.jsx (React 19 + Vite)
 
 Supabase
   auth              → Supabase Auth (email/password)
-  postgres          → 8 tables with RLS
+  postgres          → 8 tables with RLS (job_matches now includes cover_letter)
   storage           → resumes bucket (private)
   realtime          → scoped per user_id
 ```
@@ -113,8 +113,9 @@ TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
 ### AI Model Usage
 - Stage 1 + Stage 2: **Groq LLaMA 3.3 70B** — the most intelligent open-source JSON classifier available.
-- Stage 3: **Gemini 3.5 Pro** — highly intelligent contextual reasoning to strictly match and penalize irrelevant jobs.
+- Stage 3: **Gemini 3.5 Flash** — highly intelligent contextual reasoning to strictly match and penalize irrelevant jobs.
 - Resume parsing + Jina extraction + GitHub README: **Groq LLaMA 3.3 70B**
+- Cover Letter Generation: **Gemini 1.5 Pro** — deep reasoning applied to align resume skills with job descriptions for tailored applications.
 - **Batched Processing**: The pipeline processes jobs in batches of 15 per API call. This speeds up the scheduler significantly and prevents GitHub Actions 25-minute timeouts during traffic spikes while respecting the Gemini 15 RPM limit.
 
 ### Database Conventions
@@ -242,6 +243,12 @@ When your $0 budget constraints relax OR if the 10-min bot gap bothers you:
 - **Supabase RS256 JWTs**: Supabase migrated to RS256 signing keys. Backend must use `supabase.auth.get_user(token)` instead of `PyJWT` local validation to handle this securely.
 - **PostgREST 1-to-1 Joins**: PostgREST joins on 1-to-1 relationships can unexpectedly return empty arrays. Backend routes explicitly run sequential queries instead of relying on magic `.select('*, user_profiles(*)')` joins.
 
+### Automated Application Phase (2026-06-15)
+- Added `cover_letter` and `application_qa` columns to `job_matches` via migration `003_applications_phase.sql`.
+- Created `applications.py` in the FastAPI backend to generate highly tailored markdown cover letters using `gemini-1.5-pro-latest` (Gemini Pro).
+- Built frontend UI in `JobCard.jsx` to request, render, and copy AI-generated cover letters on demand.
+- Updated `backend/requirements.txt` to include `google-generativeai`.
+
 ### Audit Fixes Applied (2026-06-15)
 - Added `feedparser==6.0.11` to `backend/requirements.txt` (was missing — `imports.py` imports it)
 - Added ownership check (chat_id → user_id) to Telegram callback handler for save/reject buttons
@@ -276,6 +283,12 @@ When your $0 budget constraints relax OR if the 10-min bot gap bothers you:
 - **[L5]** Created `supabase/migrations/002_audit_fixes.sql` to tighten `telegram_link_codes` RLS from `using (true)` to `using (false)`
 - **[P1]** Fixed `gemini-1.5-flash` API 404 error by migrating to `gemini-1.5-flash-latest` in `stage3_score.py`
 - **[P2]** Fixed Groq 100k TPD token limit crashes by switching `stage1_remote.py` and `stage2_seniority.py` from 70B to `llama-3.1-8b-instant` and trimming description prompt lengths from 1000 to 600 characters.
+
+### Pipeline Debugging & Hardening (2026-06-16)
+- **[H1]** Fixed Jina fetcher Groq `429` rate limit crashes by downgrading the extraction model in `jina_fetcher.py` from 70B to `llama-3.1-8b-instant`.
+- **[H2]** Reverted `gemini-1.5-flash-latest` back to `gemini-1.5-flash` in `stage3_score.py` as the Google API deprecated the `-latest` suffix for `v1beta`, which had been causing 404s and forcing a fallback score of 50 for all jobs.
+- **[H3]** Added `"part-time"` to Pydantic literal validators in `pipeline/models.py` since the downgraded 8B model successfully extracts this role, which previously threw a `literal_error` and caused batches to drop.
+- **[H4]** Hardened `rss_fetcher.py` to use `feedparser.published_parsed` to correctly format dates into ISO 8601 strings. This prevents Supabase `400 Bad Request` database insertion errors caused by non-standard RSS date strings.
 
 ## File Index (key files only)
 ```
