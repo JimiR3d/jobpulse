@@ -104,11 +104,15 @@
 
 ### Session 2026-06-16 — Pipeline Hardening & Edge Case Debugging
 **Tasks completed:**
-- Debugged GitHub Actions workflow failure where all jobs were receiving a score of 50 and sources were degrading.
-- Reverted `stage3_score.py` from `gemini-1.5-flash-latest` back to `gemini-1.5-flash` to fix a Google API 404 error that caused the entire pipeline to default to the 50 score fallback.
-- Downgraded the Jina fetcher extraction model in `jina_fetcher.py` from 70B to `llama-3.1-8b-instant` to prevent Groq `429 Too Many Requests` limit errors from marking all sources as degraded.
-- Added `"part-time"` to the strict Pydantic Literal validation in `models.py` since the new 8B model successfully extracts this role type.
-- Updated `rss_fetcher.py` to use `feedparser.published_parsed` to format dates precisely as ISO 8601 timestamps, preventing Supabase `400 Bad Request` database insertion errors.
+- Debugged GitHub Actions workflow failure where all jobs were receiving a score of 50.
+- ⚠️ WARNING: GEMINI 1.5 MODELS ARE FULLY DEPRECATED AS OF 2026. DO NOT USE. YOU MUST STRICTLY USE GEMINI 3.5 FLASH AND PRO LATEST TO AVOID 404 API ERRORS.
+
+### June 16, 2026: AI Model Evolution & Pipeline Hardening
+- **Gemini 1.5 Deprecation Discovery**: Discovered via a custom diagnostic script that the `gemini-1.5` series (including `gemini-1.5-flash` and `gemini-1.5-pro`) is officially deprecated and removed from modern Google API keys, causing `404 Not Found` API errors.
+- **Model Upgrades**: Upgraded the entire architecture to use the 3.x series. Stage 3 scoring now uses `gemini-3.5-flash` (for fast, cheap processing) and the Cover Letter generation uses `gemini-pro-latest` (for heavy reasoning).
+- **Library Warning**: `google.generativeai` has ceased updates. Future migrations will require switching to `google.genai`.
+- **Jina JSON Fixes**: Fixed `llama-3.1-8b-instant` JSON truncation errors by enforcing `response_format={"type": "json_object"}`.
+- **Pydantic Hardening**: Relaxed the `role_type` validator from a strict `Literal` to `str` after the 8B model correctly extracted `"minijob"` from German job boards, preventing validation crashes.
 
 **Key decisions:**
 - Continued enforcing strict Pydantic schema rules while dynamically expanding allowed values (like "part-time") when smaller open-source models demonstrate valid variations in extraction behavior.
