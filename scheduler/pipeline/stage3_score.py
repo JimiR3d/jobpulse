@@ -32,7 +32,7 @@ if not api_key:
     logger.error("GEMINI_API_KEY is not set or is empty!")
 
 genai.configure(api_key=api_key)
-_model = genai.GenerativeModel("gemini-1.5-flash-8b")
+_model = genai.GenerativeModel("gemini-3.5-flash")
 
 _PROMPT_TEMPLATE = """Score these jobs against this candidate's profile. Be generous — the candidate is very open to new roles.
 Return ONLY valid JSON, no other text, no markdown fences.

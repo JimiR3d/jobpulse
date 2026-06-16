@@ -115,7 +115,7 @@ TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 - Stage 1 + Stage 2: **Groq LLaMA 3.3 70B** — the most intelligent open-source JSON classifier available.
 - Stage 3: **Gemini 3.5 Flash** — highly intelligent contextual reasoning to strictly match and penalize irrelevant jobs.
 - Resume parsing + Jina extraction + GitHub README: **Groq LLaMA 3.3 70B**
-- Cover Letter Generation: **Gemini 1.5 Pro** — deep reasoning applied to align resume skills with job descriptions for tailored applications.
+- Cover Letter Generation: **Gemini Pro Latest** — deep reasoning applied to align resume skills with job descriptions for tailored applications.
 - **Batched Processing**: The pipeline processes jobs in batches of 15 per API call. This speeds up the scheduler significantly and prevents GitHub Actions 25-minute timeouts during traffic spikes while respecting the Gemini 15 RPM limit.
 
 ### Database Conventions
@@ -286,7 +286,7 @@ When your $0 budget constraints relax OR if the 10-min bot gap bothers you:
 
 ### Pipeline Debugging & Hardening (2026-06-16)
 - **[H1]** Fixed Jina fetcher Groq `429` rate limit crashes by downgrading the extraction model in `jina_fetcher.py` from 70B to `llama-3.1-8b-instant`.
-- **[H2]** Reverted `gemini-1.5-flash-latest` back to `gemini-1.5-flash` in `stage3_score.py` as the Google API deprecated the `-latest` suffix for `v1beta`, which had been causing 404s and forcing a fallback score of 50 for all jobs.
+- **[H2]** Replaced the deprecated `gemini-1.5-flash` model with `gemini-3.5-flash` in `stage3_score.py` as the 1.5 series was entirely removed from the Google API, which had been causing 404s.
 - **[H3]** Added `"part-time"` to Pydantic literal validators in `pipeline/models.py` since the downgraded 8B model successfully extracts this role, which previously threw a `literal_error` and caused batches to drop.
 - **[H4]** Hardened `rss_fetcher.py` to use `feedparser.published_parsed` to correctly format dates into ISO 8601 strings. This prevents Supabase `400 Bad Request` database insertion errors caused by non-standard RSS date strings.
 
