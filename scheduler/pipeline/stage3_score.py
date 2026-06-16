@@ -16,23 +16,15 @@ Also extracts currency_signal and any disqualifiers.
 
 import json
 import logging
-import os
 import re
 
-import google.generativeai as genai
+from groq import Groq
 
 from pipeline.llm_safety import prepare_job_for_llm
 from pipeline.models import MatchScoreBatchResult, SCORE_FALLBACK
-from pipeline.resilience import gemini_breaker
+from pipeline.resilience import groq_breaker
 
 logger = logging.getLogger("jobpulse.scheduler")
-
-api_key = os.environ.get("GEMINI_API_KEY", "")
-if not api_key:
-    logger.error("GEMINI_API_KEY is not set or is empty!")
-
-genai.configure(api_key=api_key)
-_model = genai.GenerativeModel("gemini-3.5-flash")
 
 _PROMPT_TEMPLATE = """Score these jobs against this candidate's profile. Be generous — the candidate is very open to new roles.
 Return ONLY valid JSON, no other text, no markdown fences.
@@ -59,7 +51,7 @@ Jobs to analyze:
 {jobs_text}"""
 
 
-def _call_gemini_batch(jobs: list[dict], user_profile: dict) -> list[dict]:
+def _call_groq_batch(jobs: list[dict], user_profile: dict, client: Groq) -> list[dict]:
     jobs_text_lines = []
     for idx, job in enumerate(jobs):
         safe = prepare_job_for_llm(job)
@@ -82,13 +74,14 @@ def _call_gemini_batch(jobs: list[dict], user_profile: dict) -> list[dict]:
         jobs_text="\n".join(jobs_text_lines),
     )
     
-    response = _model.generate_content(
-        prompt,
-        generation_config=genai.types.GenerationConfig(
-            response_mime_type="application/json",
-        ),
+    resp = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.0,
+        max_tokens=3000,
+        response_format={"type": "json_object"}
     )
-    text = response.text.strip()
+    text = resp.choices[0].message.content.strip()
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
     raw = json.loads(text)
@@ -106,9 +99,9 @@ def _call_gemini_batch(jobs: list[dict], user_profile: dict) -> list[dict]:
     return aligned
 
 
-def score_job_batch(jobs: list[dict], user_profile: dict) -> list[dict]:
+def score_job_batch(jobs: list[dict], user_profile: dict, client: Groq) -> list[dict]:
     """
-    Score a batch of jobs against a user profile using Gemini Flash.
+    Score a batch of jobs against a user profile using Groq (LLaMA 3.3 70B).
     Returns a list of MatchScoreResult dicts. Uses circuit breaker + retry.
     """
     fallback = []
@@ -117,11 +110,12 @@ def score_job_batch(jobs: list[dict], user_profile: dict) -> list[dict]:
         f["job_index"] = idx
         fallback.append(f)
 
-    return gemini_breaker.call_with_fallback(
-        _call_gemini_batch,
+    return groq_breaker.call_with_fallback(
+        _call_groq_batch,
         fallback,
         jobs,
         user_profile,
+        client,
         max_retries=3,
     )
 

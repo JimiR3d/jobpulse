@@ -119,3 +119,8 @@ export const telegramApi = {
   unlink: () => request('DELETE', '/api/telegram/unlink'),
   status: () => request('GET', '/api/telegram/status'),
 }
+
+// ── Applications API ──────────────────────────────────────────
+export const applicationsApi = {
+  generateCoverLetter: (matchId) => request('POST', `/api/applications/${matchId}/cover-letter`),
+}

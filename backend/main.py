@@ -112,13 +112,14 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 # ── Routes ───────────────────────────────────────────────────────
-from routes import jobs, sources, profile, imports, telegram_routes  # noqa: E402
+from routes import jobs, sources, profile, imports, telegram_routes, applications  # noqa: E402
 
 app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
 app.include_router(sources.router, prefix="/api/sources", tags=["sources"])
 app.include_router(profile.router, prefix="/api/profile", tags=["profile"])
 app.include_router(imports.router, prefix="/api/imports", tags=["imports"])
 app.include_router(telegram_routes.router, prefix="/api/telegram", tags=["telegram"])
+app.include_router(applications.router, prefix="/api/applications", tags=["applications"])
 
 # ── Health check ─────────────────────────────────────────────────
 @app.get("/health")

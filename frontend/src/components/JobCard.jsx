@@ -10,7 +10,7 @@ import { useState } from 'react'
 import { ChevronDown, ChevronUp, ExternalLink, Star, Check, X, AlertTriangle } from 'lucide-react'
 import ScoreBadge from './ScoreBadge'
 import HealthBadge from './HealthBadge'
-import { jobsApi } from '../lib/api'
+import { jobsApi, applicationsApi } from '../lib/api'
 
 const CURRENCY_EMOJI = { usd: '💵', gbp: '💷', eur: '💶' }
 const SENIORITY_BADGE = {
@@ -37,6 +37,8 @@ export default function JobCard({ match, onStatusChange }) {
   const [expanded, setExpanded] = useState(false)
   const [status, setStatus] = useState(match.status)
   const [loading, setLoading] = useState(null)
+  const [coverLetter, setCoverLetter] = useState(match.cover_letter || null)
+  const [generatingCL, setGeneratingCL] = useState(false)
 
   const job = match.jobs || {}
   const source = job.job_sources || {}
@@ -54,6 +56,19 @@ export default function JobCard({ match, onStatusChange }) {
       console.error('Status update failed:', e)
     } finally {
       setLoading(null)
+    }
+  }
+
+  async function generateCoverLetter() {
+    setGeneratingCL(true)
+    try {
+      const resp = await applicationsApi.generateCoverLetter(match.id)
+      setCoverLetter(resp.cover_letter)
+    } catch (e) {
+      console.error('Failed to generate cover letter:', e)
+      alert(e.message || 'Failed to generate cover letter')
+    } finally {
+      setGeneratingCL(false)
     }
   }
 
@@ -230,7 +245,35 @@ export default function JobCard({ match, onStatusChange }) {
                 Not interested
               </button>
             )}
+
+            <button
+              className="btn btn-secondary text-indigo-400 border-indigo-400/30 hover:border-indigo-400 hover:bg-indigo-400/10 ml-auto"
+              onClick={(e) => { e.stopPropagation(); generateCoverLetter() }}
+              disabled={generatingCL}
+            >
+              ✨ {generatingCL ? 'Generating...' : (coverLetter ? 'Regenerate Cover Letter' : 'Generate Cover Letter')}
+            </button>
           </div>
+
+          {/* Cover Letter Panel */}
+          {coverLetter && (
+            <div className="mt-4 p-4 bg-gray-800/50 rounded border border-gray-700 slide-in">
+              <div className="flex justify-between items-center mb-3">
+                <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+                  AI Cover Letter
+                </p>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(coverLetter) }}
+                  className="text-xs text-gray-400 hover:text-white flex items-center gap-1 bg-gray-700/50 px-2 py-1 rounded"
+                >
+                  📋 Copy text
+                </button>
+              </div>
+              <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap font-sans">
+                {coverLetter}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>

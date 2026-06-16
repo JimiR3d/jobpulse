@@ -2,7 +2,7 @@
 
 ## What This Is
 AI-powered personal remote job aggregator. Monitors 60+ job boards every 2 hours via GitHub Actions,
-runs a 3-stage AI pipeline (Groq → Groq → Gemini Flash), and delivers scored matches via Telegram and web dashboard.
+runs a 3-stage AI pipeline (Groq → Groq → Groq), and delivers scored matches via Telegram and web dashboard.
 Monthly cost: **$0** (all free tiers).
 
 ## Project Root
@@ -16,7 +16,7 @@ GitHub Actions (cron every 2h)    → scheduler/main.py
   deduplicator  → MD5 hash dedup against DB
   pipeline/     → Stage 1 (Groq: remote check)
                 → Stage 2 (Groq: seniority)
-                → Stage 3 (Gemini Flash: match score)
+                → Stage 3 (Groq 70B: match score)
   notifier      → Telegram alerts with inline buttons
 
 Render (always-on Starter OR free+UptimeRobot) → backend/main.py (FastAPI)
@@ -112,8 +112,8 @@ TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 - Frontend: `VITE_` prefix safe for `SUPABASE_URL` and `SUPABASE_ANON_KEY` only — never API keys
 
 ### AI Model Usage
-- Stage 1 + Stage 2: **Groq LLaMA 3.3 70B** — the most intelligent open-source JSON classifier available.
-- Stage 3: **Gemini 3.5 Flash** — highly intelligent contextual reasoning to strictly match and penalize irrelevant jobs.
+- Stage 1 + Stage 2: **Groq LLaMA 3.1 8B** — fast JSON classification.
+- Stage 3: **Groq LLaMA 3.3 70B** — highly intelligent contextual reasoning to strictly match and penalize irrelevant jobs (migrated from Gemini Flash due to strict 20 req/day limits).
 - Resume parsing + Jina extraction + GitHub README: **Groq LLaMA 3.3 70B**
 - Cover Letter Generation: **Gemini Pro Latest** — deep reasoning applied to align resume skills with job descriptions for tailored applications.
 - **Batched Processing**: The pipeline processes jobs in batches of 15 per API call. This speeds up the scheduler significantly and prevents GitHub Actions 25-minute timeouts during traffic spikes while respecting the Gemini 15 RPM limit.

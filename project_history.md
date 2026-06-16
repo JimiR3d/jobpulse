@@ -121,3 +121,16 @@
 **Open items for next session:**
 - [x] Test the completely fixed pipeline. (Confirmed via new logs)
 - [ ] Verify the Automated Cover Letter generation feature on the frontend using `gemini-1.5-pro`.
+
+### Session 2026-06-16 — Stage 3 Groq Migration
+**Tasks completed:**
+- Migrated the scheduler's Stage 3 Match Scoring from `gemini-3.5-flash` to `llama-3.3-70b-versatile` on Groq.
+- Updated `scheduler/pipeline/stage3_score.py` and `scheduler/main.py` to use the `groq_client` instead of `google.generativeai`.
+- Updated `GEMINI.md` to reflect that the background scheduler uses Groq for all three stages to stay within free-tier limits.
+
+**Key decisions:**
+- A hard limit of 20 requests per day for `gemini-3.5-flash` on the free tier made it impossible to process background job matches. Moving Stage 3 to Groq's 70B model maintains high intelligence scoring while utilizing Groq's generous 100k TPD limits.
+- Gemini is now reserved exclusively for the on-demand Automated Cover Letter generation endpoint, where 20 requests per day is sufficient for manual user interactions.
+
+**Open items for next session:**
+- [ ] Test the Automated Cover Letter UI button in `JobCard.jsx`. (Requires `.env` setup locally or testing on staging environment).

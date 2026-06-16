@@ -243,7 +243,7 @@ def run() -> None:
                         stage_data_for_user.append((stage1, stage2))
                     
                     if jobs_for_user:
-                        score_results = score_job_batch(jobs_for_user, profile)
+                        score_results = score_job_batch(jobs_for_user, profile, groq_client)
                         
                         for i, score_result in enumerate(score_results):
                             job = jobs_for_user[i]
@@ -274,7 +274,8 @@ def run() -> None:
                                     )
                                 )
                         
-                        # Gemini: 15 RPM limit = 1 request every 4 seconds.
+                        
+                        # Groq Stage 3 rate limit buffer
                         time.sleep(4.1)
 
             # Free tier API rate limit buffer for Groq:
