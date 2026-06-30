@@ -90,7 +90,7 @@ jobpulse/
 ├── frontend/       React + Vite + Tailwind dashboard
 ├── supabase/       Postgres migrations + RLS policies
 ├── telegram_bot/   Standalone bot runner
-└── docs/           PRD, security review, architecture notes
+└── docs/           PRD, security review, project history
 ```
 
 ## Local setup
@@ -128,11 +128,11 @@ cd scheduler && pip install -r requirements.txt && python main.py
 
 ## Documentation
 
-Design and engineering docs live in [`/docs`](docs/):
+This repo keeps `GEMINI.md` at the root as live AI-context for ongoing work. Deeper design and engineering docs live in [`/docs`](docs/):
 
 - **[Product Requirements (PRD)](docs/PRD.md)** — full feature spec and rationale
 - **[Security review](docs/SECURITY.md)** — threat model and the patches applied
-- **[Architecture notes](docs/GEMINI.md)** — AI context and pipeline decisions
+- **[Architecture notes](GEMINI.md)** — AI context and pipeline decisions
 - **[Project history](docs/PROJECT_HISTORY.md)** — build log and key decisions
 
 ---
